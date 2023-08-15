@@ -18,13 +18,3 @@ func GetPgConn(dsn string) (*gorm.DB, error) {
 		PrepareStmt: true,
 	})
 }
-
-func init() {
-	var err error
-	if PgDb == nil {
-		PgDb, err = GetPgConn(PgDsn)
-		if err != nil {
-			panic(err)
-		}
-	}
-}

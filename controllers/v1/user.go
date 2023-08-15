@@ -11,16 +11,16 @@ import (
 	"gorm.io/gorm"
 )
 
-type UserController struct {
+type UserAuthController struct {
 	Router *gin.RouterGroup
 }
 
-func (ctrl *UserController) HandleRoutes() {
+func (ctrl *UserAuthController) HandleRoutes() {
 	ctrl.Router.POST("/func/users/login", ctrl.Login)
 	ctrl.Router.POST("/func/users/signup", ctrl.SignUp)
 }
 
-func (ctrl *UserController) Login(ctx *gin.Context) {
+func (ctrl *UserAuthController) Login(ctx *gin.Context) {
 	userLoginData := datamodels.UserLoginData{}
 	if err := ctx.ShouldBindJSON(&userLoginData); err != nil {
 		ctx.JSON(http.StatusUnauthorized, datamodels.DefaultResponse{
@@ -52,12 +52,12 @@ func (ctrl *UserController) Login(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusOK, datamodels.TokenResponse{
-		AccessToken: "1234567",
-		TokenType:   "Bearer",
+		AccessToken: utils.GetDefaultToken(user.Username, utils.DefaultTokenKey),
+		TokenType:   utils.TokenType,
 	})
 }
 
-func (ctrl *UserController) SignUp(ctx *gin.Context) {
+func (ctrl *UserAuthController) SignUp(ctx *gin.Context) {
 	userSignUpData := datamodels.UserSignUpData{}
 	if err := ctx.ShouldBindJSON(&userSignUpData); err != nil {
 		ctx.JSON(http.StatusBadRequest, datamodels.DefaultResponse{
@@ -136,4 +136,18 @@ func (ctrl *UserController) SignUp(ctx *gin.Context) {
 	}
 	user.Partner = partner
 	ctx.JSON(http.StatusOK, user)
+}
+
+type UserController struct {
+	Router *gin.RouterGroup
+}
+
+func (ctrl *UserController) HandleRoutes() {
+	ctrl.Router.GET("/func/users/change_password", ctrl.ChangePassword)
+}
+
+func (ctrl *UserController) ChangePassword(ctx *gin.Context) {
+	ctx.JSON(http.StatusOK, map[string]string{
+		"foo": "bar",
+	})
 }
