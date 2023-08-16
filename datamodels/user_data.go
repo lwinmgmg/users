@@ -25,6 +25,10 @@ type TokenResponse struct {
 	TokenType   string
 }
 
+type ReAuthTokenRequest struct {
+	Token string
+}
+
 type UserSignUpData struct {
 	FirstName string
 	LastName  string
