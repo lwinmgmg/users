@@ -14,7 +14,7 @@ func DefineRoutes(app *gin.Engine) {
 		Router: v1AuthRouter,
 	}
 	userAuthController.HandleRoutes()
-	v1Router := app.Group("/api/v1", middlewares.JwtAuthMiddleware(utils.DefaultTokenKey, utils.TokenType))
+	v1Router := app.Group("/api/v1", middlewares.JwtAuthMiddleware(utils.DefaultTokenKey, utils.BearerTokenType))
 	userController := &v1.UserController{
 		Router: v1Router,
 	}

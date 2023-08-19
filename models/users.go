@@ -15,6 +15,7 @@ type User struct {
 	Password  []byte  `gorm:"size:256;"`
 	PartnerID uint    `gorm:"uniqueIndex; not null;"`
 	Partner   Partner `gorm:"foreignKey:PartnerID"`
+	Secret    string  `gorm:"size:32;"`
 }
 
 func (user *User) Create(tx *gorm.DB) error {
@@ -34,6 +35,19 @@ func (user *User) Authenticate(tx *gorm.DB, userLoginData *datamodels.UserLoginD
 		return errors.New("wrong password")
 	}
 	return nil
+}
+
+func (user *User) GetPartnerByUsername(username string, tx *gorm.DB) (*Partner, error) {
+	partner := Partner{}
+	if err := tx.Where(&User{
+		Username: user.Username,
+	}).First(user).Error; err != nil {
+		return &partner, err
+	}
+	if err := tx.First(&partner, user.PartnerID).Error; err != nil {
+		return &partner, err
+	}
+	return &partner, nil
 }
 
 func (user *User) Exist(tx *gorm.DB) error {

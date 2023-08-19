@@ -62,3 +62,7 @@ func (partner *Partner) CheckPhone(tx *gorm.DB) error {
 	}
 	return utils.ErrRecordAlreadyExist
 }
+
+func (partner *Partner) GetPartnerByID(id uint, tx *gorm.DB) error {
+	return tx.First(partner, id).Error
+}

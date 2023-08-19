@@ -41,3 +41,8 @@ type UserSignUpData struct {
 func (signUpDt *UserSignUpData) Validate() error {
 	return nil
 }
+
+type OtpData struct {
+	PassCode string
+	Token    string
+}

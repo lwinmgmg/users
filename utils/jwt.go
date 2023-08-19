@@ -8,7 +8,8 @@ import (
 
 var (
 	DefaultTokenKey  = "letmein"
-	TokenType = "Bearer"
+	BearerTokenType = "Bearer"
+	OtpTokenType = "UUID"
 )
 
 type UserClaim struct {

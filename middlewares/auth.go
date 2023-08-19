@@ -47,7 +47,8 @@ func JwtAuthMiddleware(tokenKey, tokenType string) gin.HandlerFunc {
 				return
 			}
 		}
-		if _, err := services.GetKey(inputTokenString); err != nil {
+		username, err := services.GetKey(inputTokenString)
+		if err != nil {
 			claim := jwt.RegisteredClaims{}
 			if tknErr := utils.ValidateToken(inputTokenString, tokenKey, &claim); tknErr != nil {
 				if errors.Is(tknErr, jwt.ErrTokenExpired) {
@@ -64,8 +65,10 @@ func JwtAuthMiddleware(tokenKey, tokenType string) gin.HandlerFunc {
 				return
 			}
 			if err == redis.Nil {
-				services.SetKey(inputTokenString, "1", claim.ExpiresAt.Sub(time.Now()))
+				services.SetKey(inputTokenString, claim.ID, claim.ExpiresAt.Sub(time.Now()))
 			}
+			username = claim.ID
 		}
+		ctx.Set("username", username)
 	}
 }
