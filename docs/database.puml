@@ -1,0 +1,27 @@
+@startuml
+class User {
+    id          : Integer
+    username    : String
+    password    : String
+    partner_id  : Integer
+    secret      : String
+    create_date : Date
+    write_date  : Date
+}
+
+class Partner {
+    id                 : Integer
+    first_name         : String
+	last_name          : String
+	email              : String
+	phone              : String
+	is_email_confirmed : Bool
+	is_phone_confirmed : Bool
+	code               : String
+    create_date        : Date
+    write_date         : Date
+}
+
+User::partner_id --* Partner::id
+
+@enduml

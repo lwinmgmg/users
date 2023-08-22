@@ -1,0 +1,31 @@
+@startuml
+actor Client
+participant User as "User Service"
+Client -> User : Re-Authentication or Extend token expire time
+note left
+{
+    "access_token": "string"
+}
+end note
+alt#Green #LightGreen Valid Token
+User -> Client : Token Response
+note right
+{
+    "access_token": "string",
+    "token_type": "Bearer"
+}
+old token will be used as it is still valid
+end note
+else #Aqua Valid Token(Expired)
+User --> User : Generate Token
+User -> Client : Token Response
+note right
+{
+    "access_token": "string",
+    "token_type": "Bearer"
+}
+end note
+else #OrangeRed Invalid Token
+User -> Client : Error Status 400+
+end
+@enduml

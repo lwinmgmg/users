@@ -1,0 +1,31 @@
+@startuml
+actor Client as "Front End"
+participant User as "User Service"
+database Redis
+Client -> User : OTP Authentication
+note left
+{
+    "passcode":"123456",
+    "access_token":"string"
+}
+* passcode = otp from email
+* access_token = uuid from Login route
+end note
+alt#Green #LightGreen Success
+    User --> Redis : Check UUID to get Secret and Username
+    Redis --> User : UUID Found
+    User --> User : Validate Passcode
+    User -> Client : Response Token
+    note right
+    status: 200
+    {
+        "access_token": "string",
+        "token_type": "Bearer"
+    }
+    end note
+else #OrangeRed Failed
+    Redis --> User : UUID not found [expire passcode] or
+    User --> User : Invalid Passcode
+    User -> Client : Error Status 400+
+end
+@enduml

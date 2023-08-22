@@ -1,0 +1,46 @@
+@startuml
+actor Client
+participant User as "User Service"
+database PostgreDB
+database Redis
+participant Email as "Email Service"
+Client -> User : Login Request
+note left
+{
+    username    : String
+    password    : String
+}
+end note
+User --> PostgreDB : Check User
+alt#Green #LightGreen Success Case
+    PostgreDB --> User : Okay
+    alt #Aqua Two Factor Authentication - OFF
+        User --> User : Generate JWT Token
+        User -> Client : Response Token
+        note right
+            status: 200
+            {
+                "access_token": "string",
+                "token_type": "Bearer"
+            }
+        end note
+    else #LightBlue Two Factor Authentication - ON
+        User --> User : Generate UUID for otp code
+        User --> Email : Send Otp PassCode to user email
+        User --> Redis : Set otp key [key, value] -> [UUID, Secret] (expire after 30s)
+        Redis --> User : Okay
+        User -> Client : UUID Response[for OTP Authentication]
+        note right
+            status: 201
+            {
+                "access_token": "string",
+                "token_type": "UUID"
+            }
+        end note
+    end
+else #OrangeRed Failed
+    PostgreDB --> User : User not found or Wrong Password
+    Redis --> User : Can't set otp
+    User -> Client : Error Status 400+
+end
+@enduml
