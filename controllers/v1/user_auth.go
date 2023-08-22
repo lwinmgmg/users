@@ -85,14 +85,14 @@ func (ctrl *UserAuthController) Login(ctx *gin.Context) {
 		})
 		return
 	}
-	if _, err := services.SetKey(uuidString, fmt.Sprintf("%v:%v", user.Secret, user.Username), time.Minute); err != nil {
+	if _, err := services.SetKey(uuidString, fmt.Sprintf("%v:%v", user.Secret, user.Username), 30*time.Second); err != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, datamodels.DefaultResponse{
 			Code:    1,
 			Message: fmt.Sprintf("Internal Server ERROR : %v", err),
 		})
 		return
 	}
-	passCode, _ := totp.GenerateCode(user.Secret, time.Now().UTC().Add(-time.Minute))
+	passCode, _ := totp.GenerateCode(user.Secret, time.Now().UTC())
 	go services.MailSender.Send(passCode, []string{partner.Email})
 	ctx.JSON(http.StatusAccepted, datamodels.TokenResponse{
 		AccessToken: uuidString,
@@ -194,7 +194,7 @@ func (ctrl *UserAuthController) ReAuthenticate(ctx *gin.Context) {
 		return
 	}
 	claim := jwt.RegisteredClaims{}
-	if err := utils.ValidateToken(tokenData.Token, utils.DefaultTokenKey, &claim); err != nil {
+	if err := utils.ValidateToken(tokenData.AccessToken, utils.DefaultTokenKey, &claim); err != nil {
 		if errors.Is(err, jwt.ErrTokenExpired) {
 			ctx.JSON(http.StatusOK, datamodels.TokenResponse{
 				AccessToken: utils.GetDefaultToken(claim.ID, utils.DefaultTokenKey),
@@ -209,7 +209,7 @@ func (ctrl *UserAuthController) ReAuthenticate(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusAccepted, datamodels.TokenResponse{
-		AccessToken: tokenData.Token,
+		AccessToken: tokenData.AccessToken,
 		TokenType:   utils.BearerTokenType,
 	})
 }
@@ -223,7 +223,7 @@ func (ctrl *UserAuthController) OtpAuthenticate(ctx *gin.Context) {
 		})
 		return
 	}
-	val, err := services.GetKey(otpData.Token)
+	val, err := services.GetKey(otpData.AccessToken)
 	valList := strings.Split(val, ":")
 	if err != nil {
 		if err == redis.Nil {
@@ -240,14 +240,15 @@ func (ctrl *UserAuthController) OtpAuthenticate(ctx *gin.Context) {
 		return
 	}
 	if totp.Validate(otpData.PassCode, valList[0]) {
-		ctx.AbortWithStatusJSON(http.StatusUnauthorized, datamodels.DefaultResponse{
-			Code:    2,
-			Message: "Authorization Required! [Invalid PassCode]",
+		ctx.JSON(http.StatusOK, datamodels.TokenResponse{
+			AccessToken: utils.GetDefaultToken(valList[1], utils.DefaultTokenKey),
+			TokenType:   utils.BearerTokenType,
 		})
 		return
 	}
-	ctx.JSON(http.StatusOK, datamodels.TokenResponse{
-		AccessToken: utils.GetDefaultToken(valList[1], utils.DefaultTokenKey),
-		TokenType:   utils.BearerTokenType,
+	ctx.AbortWithStatusJSON(http.StatusUnauthorized, datamodels.DefaultResponse{
+		Code:    2,
+		Message: "Authorization Required! [Invalid PassCode]",
 	})
+
 }

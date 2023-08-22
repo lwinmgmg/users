@@ -47,28 +47,27 @@ func JwtAuthMiddleware(tokenKey, tokenType string) gin.HandlerFunc {
 				return
 			}
 		}
-		username, err := services.GetKey(inputTokenString)
-		if err != nil {
-			claim := jwt.RegisteredClaims{}
-			if tknErr := utils.ValidateToken(inputTokenString, tokenKey, &claim); tknErr != nil {
-				if errors.Is(tknErr, jwt.ErrTokenExpired) {
-					ctx.AbortWithStatusJSON(http.StatusUnauthorized, datamodels.DefaultResponse{
-						Code:    3,
-						Message: "Authorization Required! [TokenExpired]",
-					})
-				} else {
-					ctx.AbortWithStatusJSON(http.StatusUnauthorized, datamodels.DefaultResponse{
-						Code:    4,
-						Message: fmt.Sprintf("Authorization Required! [%v]", tknErr),
-					})
-				}
-				return
+		claim := jwt.RegisteredClaims{}
+		if err := utils.ValidateToken(inputTokenString, tokenKey, &claim); err != nil {
+			if errors.Is(err, jwt.ErrTokenExpired) {
+				ctx.AbortWithStatusJSON(http.StatusUnauthorized, datamodels.DefaultResponse{
+					Code:    3,
+					Message: "Authorization Required! [TokenExpired]",
+				})
+			} else {
+				ctx.AbortWithStatusJSON(http.StatusUnauthorized, datamodels.DefaultResponse{
+					Code:    4,
+					Message: fmt.Sprintf("Authorization Required! [%v]", err),
+				})
 			}
+			return
+		}
+		go func() {
+			_, err := services.GetKey(inputTokenString)
 			if err == redis.Nil {
 				services.SetKey(inputTokenString, claim.ID, claim.ExpiresAt.Sub(time.Now()))
 			}
-			username = claim.ID
-		}
-		ctx.Set("username", username)
+		}()
+		ctx.Set("username", claim.ID)
 	}
 }

@@ -6,8 +6,8 @@ type UserData struct {
 }
 
 type UserLoginData struct {
-	Username string
-	Password string
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
 func (userLoginData *UserLoginData) Validate() error {
@@ -21,21 +21,21 @@ func (userLoginData *UserLoginData) Validate() error {
 }
 
 type TokenResponse struct {
-	AccessToken string
-	TokenType   string
+	AccessToken string `json:"access_token"`
+	TokenType   string `json:"token_type"`
 }
 
 type ReAuthTokenRequest struct {
-	Token string
+	AccessToken string `json:"access_token"`
 }
 
 type UserSignUpData struct {
-	FirstName string
-	LastName  string
-	Email     string
-	Phone     string
-	UserName  string
-	Password  string
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Email     string `json:"email"`
+	Phone     string `json:"phone"`
+	UserName  string `json:"username"`
+	Password  string `json:"password"`
 }
 
 func (signUpDt *UserSignUpData) Validate() error {
@@ -43,6 +43,6 @@ func (signUpDt *UserSignUpData) Validate() error {
 }
 
 type OtpData struct {
-	PassCode string
-	Token    string
+	PassCode    string `json:"passcode"`
+	AccessToken string `json:"access_token"`
 }
