@@ -11,11 +11,12 @@ import (
 
 type User struct {
 	DefaultModel
-	Username  string  `gorm:"uniqueIndex; not null; size:32;"`
-	Password  []byte  `gorm:"size:256;"`
-	PartnerID uint    `gorm:"uniqueIndex; not null;"`
-	Partner   Partner `gorm:"foreignKey:PartnerID"`
-	Secret    string  `gorm:"size:32;"`
+	Username        string  `gorm:"uniqueIndex; not null; size:32;"`
+	Password        []byte  `gorm:"size:256;"`
+	PartnerID       uint    `gorm:"uniqueIndex; not null;"`
+	Partner         Partner `gorm:"foreignKey:PartnerID"`
+	Secret          string  `gorm:"size:32;"`
+	IsAuthenticator bool    `gorm:"default:false;"`
 }
 
 func (user *User) Create(tx *gorm.DB) error {

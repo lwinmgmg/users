@@ -7,6 +7,10 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+const (
+	REDIS_CONTEXT_TIMEOUT time.Duration = time.Second
+)
+
 var (
 	UserRedis *redis.Client = nil
 )
@@ -14,7 +18,7 @@ var (
 func GetKey(key string) (string, error) {
 	ctx, cancel := context.WithTimeout(
 		context.Background(),
-		1000*time.Millisecond,
+		REDIS_CONTEXT_TIMEOUT,
 	)
 	defer cancel()
 	res, err := UserRedis.Get(ctx, key).Result()
@@ -27,7 +31,7 @@ func GetKey(key string) (string, error) {
 func SetKey(key, val string, duration time.Duration) (string, error) {
 	ctx, cancel := context.WithTimeout(
 		context.Background(),
-		1000*time.Millisecond,
+		REDIS_CONTEXT_TIMEOUT,
 	)
 	defer cancel()
 	res, err := UserRedis.Set(ctx, key, val, duration).Result()
@@ -35,4 +39,14 @@ func SetKey(key, val string, duration time.Duration) (string, error) {
 		return "", err
 	}
 	return res, nil
+}
+
+func DelKey(keys []string) error {
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		REDIS_CONTEXT_TIMEOUT,
+	)
+	defer cancel()
+	_, err := UserRedis.Del(ctx, keys...).Result()
+	return err
 }

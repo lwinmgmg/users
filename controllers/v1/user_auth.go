@@ -19,6 +19,10 @@ import (
 	"gorm.io/gorm"
 )
 
+const (
+	OPT_UUID_FORMAT string = "%v:%v"
+)
+
 type UserAuthController struct {
 	Router *gin.RouterGroup
 }
@@ -70,6 +74,24 @@ func (ctrl *UserAuthController) Login(ctx *gin.Context) {
 	}
 	randomUuid := uuid.New()
 	uuidString := randomUuid.String()
+	tokenExpireTime := 30 * time.Second
+	if user.IsAuthenticator {
+		tokenExpireTime = 5 * time.Minute
+	}
+	if _, err := services.SetKey(uuidString, fmt.Sprintf(OPT_UUID_FORMAT, user.Secret, user.Username), tokenExpireTime); err != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, datamodels.DefaultResponse{
+			Code:    2,
+			Message: fmt.Sprintf("Internal Server ERROR : %v", err),
+		})
+		return
+	}
+	if user.IsAuthenticator {
+		ctx.JSON(http.StatusAccepted, datamodels.TokenResponse{
+			AccessToken: uuidString,
+			TokenType:   utils.OtpTokenType,
+		})
+		return
+	}
 	partner := models.Partner{}
 	if err := partner.GetPartnerByID(user.PartnerID, DB); err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -85,16 +107,9 @@ func (ctrl *UserAuthController) Login(ctx *gin.Context) {
 		})
 		return
 	}
-	if _, err := services.SetKey(uuidString, fmt.Sprintf("%v:%v", user.Secret, user.Username), 30*time.Second); err != nil {
-		ctx.AbortWithStatusJSON(http.StatusInternalServerError, datamodels.DefaultResponse{
-			Code:    1,
-			Message: fmt.Sprintf("Internal Server ERROR : %v", err),
-		})
-		return
-	}
 	passCode, _ := totp.GenerateCode(user.Secret, time.Now().UTC())
 	go services.MailSender.Send(passCode, []string{partner.Email})
-	ctx.JSON(http.StatusAccepted, datamodels.TokenResponse{
+	ctx.JSON(http.StatusCreated, datamodels.TokenResponse{
 		AccessToken: uuidString,
 		TokenType:   utils.OtpTokenType,
 	})
