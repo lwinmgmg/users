@@ -68,6 +68,6 @@ func JwtAuthMiddleware(tokenKey, tokenType string) gin.HandlerFunc {
 				services.SetKey(inputTokenString, claim.ID, claim.ExpiresAt.Sub(time.Now()))
 			}
 		}()
-		ctx.Set("username", claim.ID)
+		ctx.Set("username", claim.Subject)
 	}
 }

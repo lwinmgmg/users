@@ -3,8 +3,9 @@ package utils
 import (
 	"fmt"
 	"testing"
+	"time"
 )
 
-func TestGenerateOtpSecret(t *testing.T){
-	fmt.Println(GenerateOtpSecret("admin"))
+func TestGenerateOtpUrl(t *testing.T) {
+	fmt.Println(GenerateOtpUrl("admin", time.Minute))
 }

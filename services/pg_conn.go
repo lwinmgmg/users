@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	PgDsn string = "host=localhost user=lwinmgmg password=letmein dbname=gorm port=5432 sslmode=disable TimeZone=Asia/Rangoon"
+	PgDsn string = "host=localhost user=lwinmgmg password=frontiir dbname=gorm port=5432 sslmode=disable TimeZone=Asia/Rangoon"
 )
 
 var (

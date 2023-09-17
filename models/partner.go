@@ -66,3 +66,13 @@ func (partner *Partner) CheckPhone(tx *gorm.DB) error {
 func (partner *Partner) GetPartnerByID(id uint, tx *gorm.DB) error {
 	return tx.First(partner, id).Error
 }
+
+func (partner *Partner) SetEmailConfirm(input bool, tx *gorm.DB) error {
+	partner.IsEmailConfirmed = input
+	return tx.Save(partner).Error
+}
+
+func (partner *Partner) SetPhoneConfirm(input bool, tx *gorm.DB) error {
+	partner.IsPhoneConfirmed = input
+	return tx.Save(partner).Error
+}

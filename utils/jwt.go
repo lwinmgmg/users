@@ -7,9 +7,9 @@ import (
 )
 
 var (
-	DefaultTokenKey  = "letmein"
+	DefaultTokenKey = "letmein"
 	BearerTokenType = "Bearer"
-	OtpTokenType = "UUID"
+	OtpTokenType    = "UUID"
 )
 
 type UserClaim struct {
@@ -26,7 +26,7 @@ func GetToken(username, tokenKey string, expiresAfter time.Duration) string {
 		Issuer:    "user",
 		IssuedAt:  jwt.NewNumericDate(nowTime),
 		ExpiresAt: jwt.NewNumericDate(nowTime.Add(expiresAfter)),
-		ID:        username,
+		Subject:   username,
 	}
 	tkn := jwt.NewWithClaims(jwt.SigningMethodHS256, claim)
 	output, _ := tkn.SignedString([]byte(tokenKey))

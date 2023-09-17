@@ -14,13 +14,24 @@ import (
 	"github.com/lwinmgmg/user/models"
 	"github.com/lwinmgmg/user/services"
 	"github.com/lwinmgmg/user/utils"
+	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
+type OtpConfirmType string
+
 const (
-	OPT_UUID_FORMAT string = "%v:%v"
+	OtpKeyDivider                = "|||"
+	OtpLogin      OtpConfirmType = "1"
+	OtpEmail      OtpConfirmType = "2"
+	OtpPhone      OtpConfirmType = "3"
+	OtpAuthr      OtpConfirmType = "4"
+)
+
+var (
+	OPT_UUID_FORMAT string = fmt.Sprintf("%v%v%v%v%v", "%v", OtpKeyDivider, "%v", OtpKeyDivider, "%v") //otp url, username, type
 )
 
 type UserAuthController struct {
@@ -65,7 +76,7 @@ func (ctrl *UserAuthController) Login(ctx *gin.Context) {
 		})
 		return
 	}
-	if user.Secret == "" {
+	if user.OtpUrl == "" {
 		ctx.JSON(http.StatusOK, datamodels.TokenResponse{
 			AccessToken: utils.GetDefaultToken(user.Username, utils.DefaultTokenKey),
 			TokenType:   utils.BearerTokenType,
@@ -74,11 +85,11 @@ func (ctrl *UserAuthController) Login(ctx *gin.Context) {
 	}
 	randomUuid := uuid.New()
 	uuidString := randomUuid.String()
-	tokenExpireTime := 30 * time.Second
+	tokenExpireTime := 5 * time.Minute
 	if user.IsAuthenticator {
 		tokenExpireTime = 5 * time.Minute
 	}
-	if _, err := services.SetKey(uuidString, fmt.Sprintf(OPT_UUID_FORMAT, user.Secret, user.Username), tokenExpireTime); err != nil {
+	if _, err := services.SetKey(uuidString, fmt.Sprintf(OPT_UUID_FORMAT, user.OtpUrl, user.Username, OtpLogin), tokenExpireTime); err != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, datamodels.DefaultResponse{
 			Code:    2,
 			Message: fmt.Sprintf("Internal Server ERROR : %v", err),
@@ -107,7 +118,15 @@ func (ctrl *UserAuthController) Login(ctx *gin.Context) {
 		})
 		return
 	}
-	passCode, _ := totp.GenerateCode(user.Secret, time.Now().UTC())
+	key, err := otp.NewKeyFromURL(user.OtpUrl)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, datamodels.DefaultResponse{
+			Code:    1,
+			Message: fmt.Sprintf("Internal Server Error. %v", err),
+		})
+		return
+	}
+	passCode, _ := totp.GenerateCode(key.Secret(), time.Now().UTC())
 	go services.MailSender.Send(passCode, []string{partner.Email})
 	ctx.JSON(http.StatusCreated, datamodels.TokenResponse{
 		AccessToken: uuidString,
@@ -124,29 +143,30 @@ func (ctrl *UserAuthController) SignUp(ctx *gin.Context) {
 		})
 		return
 	}
+	user := models.User{
+		Username: userSignUpData.UserName,
+		Password: utils.Hash256(userSignUpData.Password),
+	}
+	err := user.GetUserByUsername(user.Username, DB)
+	if err == nil {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, datamodels.DefaultResponse{
+			Code:    1,
+			Message: "User already exists",
+		})
+		return
+	}
+	if err != gorm.ErrRecordNotFound {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, datamodels.DefaultResponse{
+			Code:    1,
+			Message: fmt.Sprintf("Internal server error [%v]", err.Error()),
+		})
+		return
+	}
 	partner := models.Partner{
 		FirstName: userSignUpData.FirstName,
 		LastName:  userSignUpData.LastName,
 		Email:     userSignUpData.Email,
 		Phone:     userSignUpData.Phone,
-	}
-	user := models.User{
-		Username: userSignUpData.UserName,
-		Password: utils.Hash256(userSignUpData.Password),
-	}
-	if err := user.Exist(DB); err != nil {
-		if err == utils.ErrRecordAlreadyExist {
-			ctx.AbortWithStatusJSON(http.StatusBadRequest, datamodels.DefaultResponse{
-				Code:    1,
-				Message: "User already exist",
-			})
-			return
-		}
-		ctx.AbortWithStatusJSON(http.StatusBadRequest, datamodels.DefaultResponse{
-			Code:    1,
-			Message: fmt.Sprintf("Error on user check [%v]", err.Error()),
-		})
-		return
 	}
 	if err := partner.CheckEmail(DB); err != nil {
 		if err == utils.ErrRecordAlreadyExist {
@@ -200,6 +220,7 @@ func (ctrl *UserAuthController) SignUp(ctx *gin.Context) {
 }
 
 func (ctrl *UserAuthController) ReAuthenticate(ctx *gin.Context) {
+	// Parse Input
 	tokenData := datamodels.ReAuthTokenRequest{}
 	if err := ctx.ShouldBindJSON(&tokenData); err != nil {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, datamodels.DefaultResponse{
@@ -208,6 +229,7 @@ func (ctrl *UserAuthController) ReAuthenticate(ctx *gin.Context) {
 		})
 		return
 	}
+	// Parse claim and Validate token
 	claim := jwt.RegisteredClaims{}
 	if err := utils.ValidateToken(tokenData.AccessToken, utils.DefaultTokenKey, &claim); err != nil {
 		if errors.Is(err, jwt.ErrTokenExpired) {
@@ -223,6 +245,7 @@ func (ctrl *UserAuthController) ReAuthenticate(ctx *gin.Context) {
 		})
 		return
 	}
+	// Token is not expire yet and send back the old one
 	ctx.JSON(http.StatusAccepted, datamodels.TokenResponse{
 		AccessToken: tokenData.AccessToken,
 		TokenType:   utils.BearerTokenType,
@@ -230,6 +253,7 @@ func (ctrl *UserAuthController) ReAuthenticate(ctx *gin.Context) {
 }
 
 func (ctrl *UserAuthController) OtpAuthenticate(ctx *gin.Context) {
+	// Parse Input
 	otpData := datamodels.OtpData{}
 	if err := ctx.ShouldBindJSON(&otpData); err != nil {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, datamodels.DefaultResponse{
@@ -238,8 +262,8 @@ func (ctrl *UserAuthController) OtpAuthenticate(ctx *gin.Context) {
 		})
 		return
 	}
+	// Get otp URL from redis
 	val, err := services.GetKey(otpData.AccessToken)
-	valList := strings.Split(val, ":")
 	if err != nil {
 		if err == redis.Nil {
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, datamodels.DefaultResponse{
@@ -254,13 +278,53 @@ func (ctrl *UserAuthController) OtpAuthenticate(ctx *gin.Context) {
 		})
 		return
 	}
-	if totp.Validate(otpData.PassCode, valList[0]) {
+	// Parse Key from url
+	valList := strings.Split(val, OtpKeyDivider)
+	otpUrl := valList[0]
+	username := valList[1]
+	confirmType := valList[2]
+	key, err := otp.NewKeyFromURL(otpUrl)
+	fmt.Println("OtpAuth", key, key.Secret())
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, datamodels.DefaultResponse{
+			Code:    1,
+			Message: fmt.Sprintf("Internal Server Error. %v", err),
+		})
+		return
+	}
+	// Validate Passcode
+	if totp.Validate(otpData.PassCode, key.Secret()) {
+		var user models.User
+
+		if err := DB.Transaction(func(tx *gorm.DB) error {
+			partner, err := user.GetPartnerByUsername(username, tx)
+			if err != nil {
+				return err
+			}
+			switch confirmType {
+			case string(OtpEmail):
+				return partner.SetEmailConfirm(true, tx)
+			case string(OtpPhone):
+				return partner.SetPhoneConfirm(true, tx)
+			case string(OtpAuthr):
+				return user.SetIsAuthenticator(true, tx)
+			}
+			return nil
+		}); err != nil {
+			ctx.AbortWithStatusJSON(http.StatusInternalServerError, datamodels.DefaultResponse{
+				Code:    1,
+				Message: fmt.Sprintf("Internal Server Error. %v", err),
+			})
+			return
+		}
+		services.DelKey([]string{otpData.AccessToken})
 		ctx.JSON(http.StatusOK, datamodels.TokenResponse{
-			AccessToken: utils.GetDefaultToken(valList[1], utils.DefaultTokenKey),
+			AccessToken: utils.GetDefaultToken(username, utils.DefaultTokenKey),
 			TokenType:   utils.BearerTokenType,
 		})
 		return
 	}
+	fmt.Println(otpData.PassCode, key)
 	ctx.AbortWithStatusJSON(http.StatusUnauthorized, datamodels.DefaultResponse{
 		Code:    2,
 		Message: "Authorization Required! [Invalid PassCode]",

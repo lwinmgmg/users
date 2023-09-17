@@ -38,7 +38,7 @@ func init() {
 		MailSender = NewMailService(email, password, "smtp.gmail.com", "587")
 	}
 	if err := MailSender.Send("Hello", []string{email}); err != nil {
-		panic(err)
+		// panic(err)
 	}
 }
 
