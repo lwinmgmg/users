@@ -1,7 +1,10 @@
 package v1
 
 import (
+	"bytes"
+	"encoding/base64"
 	"fmt"
+	"image/png"
 	"net/http"
 	"time"
 
@@ -22,6 +25,7 @@ type UserController struct {
 
 func (ctrl *UserController) HandleRoutes() {
 	ctrl.Router.GET("/func/users/enable_two_factor", ctrl.EnableTwoFactorAuth)
+	ctrl.Router.GET("/func/users/enable_auth", ctrl.EnableAuthenticator)
 	ctrl.Router.GET("/func/users/confirm_email", ctrl.ConfirmEmail)
 	ctrl.Router.GET("/func/users/change_password", ctrl.ChangePassword)
 	ctrl.Router.GET("/func/users/change_email", ctrl.ChangeEmail)
@@ -93,6 +97,7 @@ func (ctrl *UserController) ConfirmEmail(ctx *gin.Context) {
 			Code:    1,
 			Message: "Email is already confirmed",
 		})
+		return
 	}
 	// Generate UUID
 	randomUuid := uuid.New()
@@ -115,7 +120,6 @@ func (ctrl *UserController) ConfirmEmail(ctx *gin.Context) {
 	}
 	// Parse Key from url
 	key, err := otp.NewKeyFromURL(otpUrl)
-	fmt.Println("Confirm email", key, key.Secret())
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, datamodels.DefaultResponse{
 			Code:    1,
@@ -185,5 +189,67 @@ func (ctrl *UserController) EnableTwoFactorAuth(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, datamodels.DefaultResponse{
 		Code:    1,
 		Message: "Successfully enabled two factor authentication",
+	})
+}
+
+func (ctrl *UserController) EnableAuthenticator(ctx *gin.Context) {
+	username, ok := GetUserFromContext(ctx)
+	if !ok {
+		return
+	}
+	var user models.User
+
+	if err := user.GetUserByUsername(username, DB); err != nil {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, datamodels.DefaultResponse{
+			Code:    1,
+			Message: fmt.Sprintf("Can't set authenticator [%v]", err),
+		})
+		return
+	}
+	if user.OtpUrl == "" {
+		ctx.JSON(http.StatusAccepted, datamodels.DefaultResponse{
+			Code:    1,
+			Message: "Enable two factor authentication first",
+		})
+		return
+	}
+	randomUuid := uuid.New()
+	uuidString := randomUuid.String()
+	tokenExpireTime := 5 * time.Minute
+	if _, err := services.SetKey(uuidString, fmt.Sprintf(OPT_UUID_FORMAT, user.OtpUrl, user.Username, OtpAuthr), tokenExpireTime); err != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, datamodels.DefaultResponse{
+			Code:    2,
+			Message: fmt.Sprintf("Internal Server ERROR : %v", err),
+		})
+		return
+	}
+	var buf bytes.Buffer
+	key, err := otp.NewKeyFromURL(user.OtpUrl)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, datamodels.DefaultResponse{
+			Code:    1,
+			Message: fmt.Sprintf("Internal Server Error. %v", err),
+		})
+		return
+	}
+	img, err := key.Image(100, 100)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, datamodels.DefaultResponse{
+			Code:    4,
+			Message: fmt.Sprintf("Internal Server Error. %v", err),
+		})
+		return
+	}
+	if err := png.Encode(&buf, img); err != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, datamodels.DefaultResponse{
+			Code:    1,
+			Message: fmt.Sprintf("Internal Server Error. %v", err),
+		})
+		return
+	}
+	ctx.JSON(http.StatusOK, datamodels.TokenAuthResponse{
+		AccessToken: uuidString,
+		TokenType:   utils.OtpTokenType,
+		Image:       base64.StdEncoding.EncodeToString(buf.Bytes()),
 	})
 }

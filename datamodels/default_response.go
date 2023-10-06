@@ -1,6 +1,6 @@
 package datamodels
 
 type DefaultResponse struct {
-	Code    int
-	Message string
+	Code    int    `json:"code"`
+	Message string `json:"message"`
 }

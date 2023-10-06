@@ -177,7 +177,7 @@ func (ctrl *UserAuthController) SignUp(ctx *gin.Context) {
 			return
 		}
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, datamodels.DefaultResponse{
-			Code:    2,
+			Code:    3,
 			Message: fmt.Sprintf("Error on email check [%v]", err.Error()),
 		})
 		return
@@ -185,13 +185,13 @@ func (ctrl *UserAuthController) SignUp(ctx *gin.Context) {
 	if err := partner.CheckPhone(DB); err != nil {
 		if err == utils.ErrRecordAlreadyExist {
 			ctx.AbortWithStatusJSON(http.StatusBadRequest, datamodels.DefaultResponse{
-				Code:    3,
+				Code:    4,
 				Message: "Phone already exist",
 			})
 			return
 		}
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, datamodels.DefaultResponse{
-			Code:    3,
+			Code:    5,
 			Message: fmt.Sprintf("Error on phone check [%v]", err.Error()),
 		})
 		return
@@ -207,7 +207,7 @@ func (ctrl *UserAuthController) SignUp(ctx *gin.Context) {
 		return nil
 	}); err != nil {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, datamodels.DefaultResponse{
-			Code:    4,
+			Code:    6,
 			Message: fmt.Sprintf("Error occur on creating user [%v]", err.Error()),
 		})
 		return
