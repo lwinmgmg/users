@@ -28,6 +28,7 @@ const (
 	OtpEmail      OtpConfirmType = "2"
 	OtpPhone      OtpConfirmType = "3"
 	OtpAuthr      OtpConfirmType = "4"
+	OtpEnable     OtpConfirmType = "5"
 )
 
 var (
@@ -308,6 +309,8 @@ func (ctrl *UserAuthController) OtpAuthenticate(ctx *gin.Context) {
 				return partner.SetPhoneConfirm(true, tx)
 			case string(OtpAuthr):
 				return user.SetIsAuthenticator(true, tx)
+			case string(OtpEnable):
+				return user.SetOtpUrl(otpUrl, tx)
 			}
 			return nil
 		}); err != nil {

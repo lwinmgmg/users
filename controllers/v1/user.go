@@ -16,7 +16,6 @@ import (
 	"github.com/lwinmgmg/user/utils"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
-	"gorm.io/gorm"
 )
 
 type UserController struct {
@@ -154,41 +153,59 @@ func (ctrl *UserController) EnableTwoFactorAuth(ctx *gin.Context) {
 		return
 	}
 	var user models.User
-	if err := DB.Transaction(func(tx *gorm.DB) error {
-		// Get user
-		if err := user.GetUserByUsername(username, tx); err != nil {
-			return err
-		}
-		partner, err := user.GetPartnerByUsername(user.Username, tx)
-		if err != nil {
-			return err
-		}
-		if !(partner.IsEmailConfirmed || partner.IsPhoneConfirmed) {
-			return utils.ErrInvalid
-		}
-		// Generate OTP URL
-		otpUrl, err := utils.GenerateOtpUrl(user.Username, time.Minute)
-		if err != nil {
-			return err
-		}
-		return user.SetOtpUrl(otpUrl, tx)
-	}); err != nil {
-		if err == utils.ErrInvalid {
-			ctx.JSON(http.StatusAccepted, datamodels.DefaultResponse{
-				Code:    1,
-				Message: "Confirm Email Or Phone first",
-			})
-			return
-		}
+
+	if err := user.GetUserByUsername(username, DB); err != nil {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, datamodels.DefaultResponse{
 			Code:    1,
 			Message: fmt.Sprintf("Two Factor Authentication can't be set. [%v]", err),
 		})
+	}
+	partner, err := user.GetPartnerByUsername(user.Username, DB)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, datamodels.DefaultResponse{
+			Code:    1,
+			Message: fmt.Sprintf("Two Factor Authentication can't be set. [%v]", err),
+		})
+	}
+	if !(partner.IsEmailConfirmed || partner.IsPhoneConfirmed) {
+		ctx.JSON(http.StatusAccepted, datamodels.DefaultResponse{
+			Code:    1,
+			Message: "Confirm Email Or Phone first",
+		})
 		return
 	}
-	ctx.JSON(http.StatusOK, datamodels.DefaultResponse{
-		Code:    1,
-		Message: "Successfully enabled two factor authentication",
+	// Generate OTP URL
+	otpUrl, err := utils.GenerateOtpUrl(user.Username, time.Minute)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, datamodels.DefaultResponse{
+			Code:    1,
+			Message: fmt.Sprintf("Two Factor Authentication can't be set. [%v]", err),
+		})
+	}
+	randomUuid := uuid.New()
+	uuidString := randomUuid.String()
+	tokenExpireTime := 5 * time.Minute
+	if _, err := services.SetKey(uuidString, fmt.Sprintf(OPT_UUID_FORMAT, otpUrl, user.Username, OtpEnable), tokenExpireTime); err != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, datamodels.DefaultResponse{
+			Code:    2,
+			Message: fmt.Sprintf("Internal Server ERROR : %v", err),
+		})
+		return
+	}
+
+	key, err := otp.NewKeyFromURL(otpUrl)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, datamodels.DefaultResponse{
+			Code:    1,
+			Message: fmt.Sprintf("Internal Server Error. %v", err),
+		})
+		return
+	}
+	passCode, _ := totp.GenerateCode(key.Secret(), time.Now().UTC())
+	go services.MailSender.Send(passCode, []string{partner.Email})
+	ctx.JSON(http.StatusOK, datamodels.TokenResponse{
+		AccessToken: uuidString,
+		TokenType:   utils.OtpTokenType,
 	})
 }
 
