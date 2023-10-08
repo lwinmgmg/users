@@ -268,5 +268,6 @@ func (ctrl *UserController) EnableAuthenticator(ctx *gin.Context) {
 		AccessToken: uuidString,
 		TokenType:   utils.OtpTokenType,
 		Image:       base64.StdEncoding.EncodeToString(buf.Bytes()),
+		Key:         key.Secret(),
 	})
 }

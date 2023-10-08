@@ -98,7 +98,7 @@ func (ctrl *UserAuthController) Login(ctx *gin.Context) {
 		return
 	}
 	if user.IsAuthenticator {
-		ctx.JSON(http.StatusAccepted, datamodels.TokenResponse{
+		ctx.JSON(http.StatusCreated, datamodels.TokenResponse{
 			AccessToken: uuidString,
 			TokenType:   utils.OtpTokenType,
 		})

@@ -29,6 +29,7 @@ type TokenAuthResponse struct {
 	AccessToken string `json:"access_token"`
 	TokenType   string `json:"token_type"`
 	Image       string `json:"image"`
+	Key         string `json:"key"`
 }
 
 type ReAuthTokenRequest struct {
