@@ -224,7 +224,7 @@ func (ctrl *UserController) EnableAuthenticator(ctx *gin.Context) {
 		return
 	}
 	if user.OtpUrl == "" {
-		ctx.JSON(http.StatusAccepted, datamodels.DefaultResponse{
+		ctx.JSON(http.StatusBadRequest, datamodels.DefaultResponse{
 			Code:    1,
 			Message: "Enable two factor authentication first",
 		})

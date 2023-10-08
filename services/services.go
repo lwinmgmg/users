@@ -21,7 +21,7 @@ func init() {
 	// Redis
 	if UserRedis == nil {
 		UserRedis = redis.NewClient(&redis.Options{
-			Addr:     "0.0.0.0:6379",
+			Addr:     "localhost:6379",
 			Password: "",
 			DB:       0,
 		})
@@ -38,6 +38,7 @@ func init() {
 		MailSender = NewMailService(email, password, "smtp.gmail.com", "587")
 	}
 	if err := MailSender.Send("Hello", []string{email}); err != nil {
+		log.Println("No email provided")
 		// panic(err)
 	}
 }
