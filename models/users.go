@@ -3,6 +3,7 @@ package models
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/lwinmgmg/user/datamodels"
@@ -10,8 +11,13 @@ import (
 	"gorm.io/gorm"
 )
 
+const (
+	USER_CODE_LENGTH int = 5
+)
+
 type User struct {
 	DefaultModel
+	Code            string  `gorm:"uniqueIndex; index; not null; size:10;"`
 	Username        string  `gorm:"uniqueIndex; index; not null; size:32;"`
 	Password        []byte  `gorm:"size:256;"`
 	PartnerID       uint    `gorm:"uniqueIndex; not null; index"`
@@ -20,10 +26,21 @@ type User struct {
 	IsAuthenticator bool    `gorm:"default:false;"`
 }
 
+func (user *User) GetSequence() string {
+	return "user_sequence"
+}
+
+func (user *User) NextCode(db *gorm.DB) string {
+	var nextSequence int
+	db.Raw(fmt.Sprintf("SELECT nextval('%v');", user.GetSequence())).Scan(&nextSequence)
+	return UuidCode.ConvertCode(nextSequence, USER_CODE_LENGTH)
+}
+
 func (user *User) Create(tx *gorm.DB) error {
 	if strings.TrimSpace(user.Username) == "" {
 		return utils.ErrInvalid
 	}
+	user.Code = user.NextCode(tx)
 	return tx.Create(user).Error
 }
 

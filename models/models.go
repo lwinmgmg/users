@@ -26,4 +26,5 @@ func init() {
 	DB.AutoMigrate(partner)
 	DB.AutoMigrate(user)
 	DB.Exec(fmt.Sprintf("CREATE SEQUENCE IF NOT EXISTS %v;", partner.GetSequence()))
+	DB.Exec(fmt.Sprintf("CREATE SEQUENCE IF NOT EXISTS %v START WITH 100000;", user.GetSequence()))
 }
