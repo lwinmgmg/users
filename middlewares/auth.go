@@ -65,9 +65,9 @@ func JwtAuthMiddleware(tokenKey, tokenType string) gin.HandlerFunc {
 		go func() {
 			_, err := services.GetKey(inputTokenString)
 			if err == redis.Nil {
-				services.SetKey(inputTokenString, claim.ID, claim.ExpiresAt.Sub(time.Now()))
+				services.SetKey(inputTokenString, claim.Subject, claim.ExpiresAt.Sub(time.Now()))
 			}
 		}()
-		ctx.Set("username", claim.Subject)
+		ctx.Set("userCode", claim.Subject)
 	}
 }

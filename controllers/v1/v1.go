@@ -14,8 +14,8 @@ var (
 )
 
 func GetUserFromContext(ctx *gin.Context) (string, bool) {
-	username, ok := ctx.Get("username")
-	userStr, ok1 := username.(string)
+	userCode, ok := ctx.Get("userCode")
+	userCodeStr, ok1 := userCode.(string)
 	if !ok || !ok1 {
 		ctx.AbortWithStatusJSON(http.StatusUnauthorized, datamodels.DefaultResponse{
 			Code:    1,
@@ -23,5 +23,5 @@ func GetUserFromContext(ctx *gin.Context) (string, bool) {
 		})
 		return "", false
 	}
-	return userStr, true
+	return userCodeStr, true
 }

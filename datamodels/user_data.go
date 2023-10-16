@@ -3,6 +3,11 @@ package datamodels
 import "errors"
 
 type UserData struct {
+	Code            string      `json:"code"`
+	Username        string      `json:"username"`
+	IsAuthenticator bool        `json:"is_authenticator"`
+	Is2FA           bool        `json:"is_2fa"`
+	PartnerData     PartnerData `json:"partner_data"`
 }
 
 type UserLoginData struct {

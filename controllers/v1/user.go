@@ -16,6 +16,7 @@ import (
 	"github.com/lwinmgmg/user/utils"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
+	"gorm.io/gorm"
 )
 
 type UserController struct {
@@ -29,38 +30,8 @@ func (ctrl *UserController) HandleRoutes() {
 	ctrl.Router.GET("/func/users/change_password", ctrl.ChangePassword)
 	ctrl.Router.GET("/func/users/change_email", ctrl.ChangeEmail)
 	ctrl.Router.GET("/func/users/change_phone", ctrl.ChangePhone)
-}
-
-func (ctrl *UserController) GenerateOtp(ctx *gin.Context) {
-	username, ok := ctx.Get("username")
-	userStr, ok1 := username.(string)
-	if !ok || !ok1 {
-		ctx.AbortWithStatusJSON(http.StatusUnauthorized, datamodels.DefaultResponse{
-			Code:    1,
-			Message: "Authorization Required!",
-		})
-		return
-	}
-	user := models.User{}
-	_, err := user.GetPartnerByUsername(userStr, DB)
-	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusNotFound, datamodels.DefaultResponse{
-			Code:    2,
-			Message: "User not found",
-		})
-		return
-	}
-	if _, err := services.SetKey(fmt.Sprintf("otp_%v", userStr), "1", time.Minute); err != nil {
-		ctx.AbortWithStatusJSON(http.StatusBadRequest, datamodels.DefaultResponse{
-			Code:    1,
-			Message: fmt.Sprintf("Can't set key %v", err),
-		})
-		return
-	}
-	ctx.JSON(http.StatusOK, datamodels.DefaultResponse{
-		Code:    0,
-		Message: "Success",
-	})
+	ctrl.Router.GET("/users/code/:userCode", ctrl.GetUserByUserCode)
+	ctrl.Router.GET("/users/profile", ctrl.GetProfile)
 }
 
 func (ctrl *UserController) ChangePassword(ctx *gin.Context) {
@@ -76,13 +47,13 @@ func (ctrl *UserController) ChangeEmail(ctx *gin.Context) {
 }
 
 func (ctrl *UserController) ConfirmEmail(ctx *gin.Context) {
-	username, ok := GetUserFromContext(ctx)
+	userCode, ok := GetUserFromContext(ctx)
 	if !ok {
 		return
 	}
 	user := models.User{}
 	// Get Partner
-	partner, err := user.GetPartnerByUsername(username, DB)
+	partner, err := user.GetPartnerByCode(userCode, DB)
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusNotFound, datamodels.DefaultResponse{
 			Code:    2,
@@ -102,7 +73,7 @@ func (ctrl *UserController) ConfirmEmail(ctx *gin.Context) {
 	randomUuid := uuid.New()
 	uuidString := randomUuid.String()
 	tokenExpireTime := 5 * time.Minute
-	otpUrl, err := utils.GenerateOtpUrl(username, tokenExpireTime)
+	otpUrl, err := utils.GenerateOtpUrl(user.Username, tokenExpireTime)
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, datamodels.DefaultResponse{
 			Code:    2,
@@ -110,7 +81,7 @@ func (ctrl *UserController) ConfirmEmail(ctx *gin.Context) {
 		})
 		return
 	}
-	if _, err := services.SetKey(uuidString, fmt.Sprintf(OPT_UUID_FORMAT, otpUrl, user.Username, OtpEmail), tokenExpireTime); err != nil {
+	if _, err := services.SetKey(uuidString, fmt.Sprintf(OPT_UUID_FORMAT, otpUrl, user.Code, OtpEmail), tokenExpireTime); err != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, datamodels.DefaultResponse{
 			Code:    2,
 			Message: fmt.Sprintf("Internal Server ERROR : %v", err),
@@ -148,19 +119,12 @@ func (ctrl *UserController) ConfirmPhone(ctx *gin.Context) {
 }
 
 func (ctrl *UserController) EnableTwoFactorAuth(ctx *gin.Context) {
-	username, ok := GetUserFromContext(ctx)
+	userCode, ok := GetUserFromContext(ctx)
 	if !ok {
 		return
 	}
 	var user models.User
-
-	if err := user.GetUserByUsername(username, DB); err != nil {
-		ctx.AbortWithStatusJSON(http.StatusBadRequest, datamodels.DefaultResponse{
-			Code:    1,
-			Message: fmt.Sprintf("Two Factor Authentication can't be set. [%v]", err),
-		})
-	}
-	partner, err := user.GetPartnerByUsername(user.Username, DB)
+	partner, err := user.GetPartnerByCode(userCode, DB)
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, datamodels.DefaultResponse{
 			Code:    1,
@@ -185,7 +149,7 @@ func (ctrl *UserController) EnableTwoFactorAuth(ctx *gin.Context) {
 	randomUuid := uuid.New()
 	uuidString := randomUuid.String()
 	tokenExpireTime := 5 * time.Minute
-	if _, err := services.SetKey(uuidString, fmt.Sprintf(OPT_UUID_FORMAT, otpUrl, user.Username, OtpEnable), tokenExpireTime); err != nil {
+	if _, err := services.SetKey(uuidString, fmt.Sprintf(OPT_UUID_FORMAT, otpUrl, user.Code, OtpEnable), tokenExpireTime); err != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, datamodels.DefaultResponse{
 			Code:    2,
 			Message: fmt.Sprintf("Internal Server ERROR : %v", err),
@@ -210,13 +174,13 @@ func (ctrl *UserController) EnableTwoFactorAuth(ctx *gin.Context) {
 }
 
 func (ctrl *UserController) EnableAuthenticator(ctx *gin.Context) {
-	username, ok := GetUserFromContext(ctx)
+	userCode, ok := GetUserFromContext(ctx)
 	if !ok {
 		return
 	}
 	var user models.User
 
-	if err := user.GetUserByUsername(username, DB); err != nil {
+	if err := user.GetUserByCode(userCode, DB); err != nil {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, datamodels.DefaultResponse{
 			Code:    1,
 			Message: fmt.Sprintf("Can't set authenticator [%v]", err),
@@ -233,7 +197,7 @@ func (ctrl *UserController) EnableAuthenticator(ctx *gin.Context) {
 	randomUuid := uuid.New()
 	uuidString := randomUuid.String()
 	tokenExpireTime := 5 * time.Minute
-	if _, err := services.SetKey(uuidString, fmt.Sprintf(OPT_UUID_FORMAT, user.OtpUrl, user.Username, OtpAuthr), tokenExpireTime); err != nil {
+	if _, err := services.SetKey(uuidString, fmt.Sprintf(OPT_UUID_FORMAT, user.OtpUrl, user.Code, OtpAuthr), tokenExpireTime); err != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, datamodels.DefaultResponse{
 			Code:    2,
 			Message: fmt.Sprintf("Internal Server ERROR : %v", err),
@@ -269,5 +233,76 @@ func (ctrl *UserController) EnableAuthenticator(ctx *gin.Context) {
 		TokenType:   utils.OtpTokenType,
 		Image:       base64.StdEncoding.EncodeToString(buf.Bytes()),
 		Key:         key.Secret(),
+	})
+}
+
+func (ctrl *UserController) GetUserByUserCode(ctx *gin.Context) {
+	userCode := ctx.Param("userCode")
+	var user models.User
+	if _, err := user.GetPartnerByCode(userCode, DB); err != nil {
+		if err == gorm.ErrRecordNotFound {
+			ctx.AbortWithStatusJSON(http.StatusNotFound, datamodels.DefaultResponse{
+				Code:    1,
+				Message: "User not found",
+			})
+			return
+		}
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, datamodels.DefaultResponse{
+			Code:    1,
+			Message: "Failed to get partner!" + err.Error(),
+		})
+		return
+	}
+	ctx.JSON(http.StatusOK, datamodels.UserData{
+		Code:            user.Code,
+		IsAuthenticator: user.IsAuthenticator,
+		Is2FA:           user.OtpUrl != "",
+		PartnerData: datamodels.PartnerData{
+			FirstName:        user.Partner.FirstName,
+			LastName:         user.Partner.LastName,
+			Email:            user.Partner.Email,
+			Phone:            user.Partner.Phone,
+			IsPhoneConfirmed: user.Partner.IsPhoneConfirmed,
+			IsEmailConfirmed: user.Partner.IsEmailConfirmed,
+			Code:             user.Partner.Code,
+		},
+	})
+
+}
+
+func (ctrl *UserController) GetProfile(ctx *gin.Context) {
+	userCode, ok := GetUserFromContext(ctx)
+	if !ok {
+		return
+	}
+	var user models.User
+	if _, err := user.GetPartnerByCode(userCode, DB); err != nil {
+		if err == gorm.ErrRecordNotFound {
+			ctx.AbortWithStatusJSON(http.StatusNotFound, datamodels.DefaultResponse{
+				Code:    1,
+				Message: "User not found",
+			})
+			return
+		}
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, datamodels.DefaultResponse{
+			Code:    1,
+			Message: "Failed to get partner!" + err.Error(),
+		})
+		return
+	}
+	ctx.JSON(http.StatusOK, datamodels.UserData{
+		Username:        user.Username,
+		Code:            user.Code,
+		IsAuthenticator: user.IsAuthenticator,
+		Is2FA:           user.OtpUrl != "",
+		PartnerData: datamodels.PartnerData{
+			FirstName:        user.Partner.FirstName,
+			LastName:         user.Partner.LastName,
+			Email:            user.Partner.Email,
+			IsEmailConfirmed: user.Partner.IsEmailConfirmed,
+			Phone:            user.Partner.Phone,
+			IsPhoneConfirmed: user.Partner.IsPhoneConfirmed,
+			Code:             user.Partner.Code,
+		},
 	})
 }

@@ -79,7 +79,7 @@ func (ctrl *UserAuthController) Login(ctx *gin.Context) {
 	}
 	if user.OtpUrl == "" {
 		ctx.JSON(http.StatusOK, datamodels.TokenResponse{
-			AccessToken: utils.GetDefaultToken(user.Username, utils.DefaultTokenKey),
+			AccessToken: utils.GetDefaultToken(user.Code, utils.DefaultTokenKey),
 			TokenType:   utils.BearerTokenType,
 		})
 		return
@@ -90,7 +90,7 @@ func (ctrl *UserAuthController) Login(ctx *gin.Context) {
 	if user.IsAuthenticator {
 		tokenExpireTime = 5 * time.Minute
 	}
-	if _, err := services.SetKey(uuidString, fmt.Sprintf(OPT_UUID_FORMAT, user.OtpUrl, user.Username, OtpLogin), tokenExpireTime); err != nil {
+	if _, err := services.SetKey(uuidString, fmt.Sprintf(OPT_UUID_FORMAT, user.OtpUrl, user.Code, OtpLogin), tokenExpireTime); err != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, datamodels.DefaultResponse{
 			Code:    2,
 			Message: fmt.Sprintf("Internal Server ERROR : %v", err),
@@ -215,7 +215,7 @@ func (ctrl *UserAuthController) SignUp(ctx *gin.Context) {
 	}
 	user.Partner = partner
 	ctx.JSON(http.StatusOK, datamodels.TokenResponse{
-		AccessToken: utils.GetDefaultToken(user.Username, utils.DefaultTokenKey),
+		AccessToken: utils.GetDefaultToken(user.Code, utils.DefaultTokenKey),
 		TokenType:   utils.BearerTokenType,
 	})
 }
@@ -235,7 +235,7 @@ func (ctrl *UserAuthController) ReAuthenticate(ctx *gin.Context) {
 	if err := utils.ValidateToken(tokenData.AccessToken, utils.DefaultTokenKey, &claim); err != nil {
 		if errors.Is(err, jwt.ErrTokenExpired) {
 			ctx.JSON(http.StatusOK, datamodels.TokenResponse{
-				AccessToken: utils.GetDefaultToken(claim.ID, utils.DefaultTokenKey),
+				AccessToken: utils.GetDefaultToken(claim.Subject, utils.DefaultTokenKey),
 				TokenType:   utils.BearerTokenType,
 			})
 			return
@@ -282,7 +282,7 @@ func (ctrl *UserAuthController) OtpAuthenticate(ctx *gin.Context) {
 	// Parse Key from url
 	valList := strings.Split(val, OtpKeyDivider)
 	otpUrl := valList[0]
-	username := valList[1]
+	userCode := valList[1]
 	confirmType := valList[2]
 	key, err := otp.NewKeyFromURL(otpUrl)
 	fmt.Println("OtpAuth", key, key.Secret())
@@ -298,7 +298,7 @@ func (ctrl *UserAuthController) OtpAuthenticate(ctx *gin.Context) {
 		var user models.User
 
 		if err := DB.Transaction(func(tx *gorm.DB) error {
-			partner, err := user.GetPartnerByUsername(username, tx)
+			partner, err := user.GetPartnerByCode(userCode, tx)
 			if err != nil {
 				return err
 			}
@@ -322,7 +322,7 @@ func (ctrl *UserAuthController) OtpAuthenticate(ctx *gin.Context) {
 		}
 		services.DelKey([]string{otpData.AccessToken})
 		ctx.JSON(http.StatusOK, datamodels.TokenResponse{
-			AccessToken: utils.GetDefaultToken(username, utils.DefaultTokenKey),
+			AccessToken: utils.GetDefaultToken(userCode, utils.DefaultTokenKey),
 			TokenType:   utils.BearerTokenType,
 		})
 		return

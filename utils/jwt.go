@@ -20,21 +20,21 @@ func (userClaim *UserClaim) Valid() error {
 	return nil
 }
 
-func GetToken(username, tokenKey string, expiresAfter time.Duration) string {
+func GetToken(userCode, tokenKey string, expiresAfter time.Duration) string {
 	nowTime := time.Now().UTC()
 	claim := jwt.RegisteredClaims{
 		Issuer:    "user",
 		IssuedAt:  jwt.NewNumericDate(nowTime),
 		ExpiresAt: jwt.NewNumericDate(nowTime.Add(expiresAfter)),
-		Subject:   username,
+		Subject:   userCode,
 	}
 	tkn := jwt.NewWithClaims(jwt.SigningMethodHS256, claim)
 	output, _ := tkn.SignedString([]byte(tokenKey))
 	return output
 }
 
-func GetDefaultToken(username, tokenKey string) string {
-	return GetToken(username, tokenKey, 24*time.Hour)
+func GetDefaultToken(userCode, tokenKey string) string {
+	return GetToken(userCode, tokenKey, 24*time.Hour)
 }
 
 func ValidateToken(tokenString, tokenKey string, claim jwt.Claims) error {

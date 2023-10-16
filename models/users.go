@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	USER_CODE_LENGTH int = 5
+	USER_CODE_LENGTH int = 10
 )
 
 type User struct {
@@ -60,22 +60,39 @@ func (user *User) Authenticate(tx *gorm.DB, userLoginData *datamodels.UserLoginD
 }
 
 func (user *User) GetPartnerByUsername(username string, tx *gorm.DB) (*Partner, error) {
-	partner := Partner{}
 	if err := tx.Where(&User{
 		Username: username,
 	}).First(user).Error; err != nil {
-		return &partner, err
+		return &user.Partner, err
 	}
-	if err := tx.First(&partner, user.PartnerID).Error; err != nil {
-		return &partner, err
+	if err := tx.First(&user.Partner, user.PartnerID).Error; err != nil {
+		return &user.Partner, err
 	}
-	return &partner, nil
+	return &user.Partner, nil
 }
 
 func (user *User) GetUserByUsername(username string, tx *gorm.DB) error {
 	return tx.Where(&User{
 		Username: username,
 	}).First(user).Error
+}
+
+func (user *User) GetUserByCode(code string, tx *gorm.DB) error {
+	return tx.Where(&User{
+		Code: code,
+	}).First((user)).Error
+}
+
+func (user *User) GetPartnerByCode(code string, tx *gorm.DB) (*Partner, error) {
+	if err := tx.Where(&User{
+		Code: code,
+	}).First(user).Error; err != nil {
+		return &user.Partner, err
+	}
+	if err := tx.First(&user.Partner, user.PartnerID).Error; err != nil {
+		return &user.Partner, err
+	}
+	return &user.Partner, nil
 }
 
 func (user *User) Login() error {
