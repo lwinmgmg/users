@@ -1,6 +1,20 @@
 # Users Service
+# Supported gRPC Functions
+Proto files are declare here.
+https://github.com/lwinmgmg/gmodels
+```
+go get github.com/lwinmgmg/gmodels/golang
+```
+### Get User by User Code
+```
+func GetUserByCode(userCode string) (User, error)
+```
+### Get User by JWT Token
+```
+func GetUserByToken(token string) (User, error)
+```
 
-## Supported Routes
+# Supported HTTP Routes
 
 ### User Login
 [GIN-debug] POST   /api/v1/func/users/login
