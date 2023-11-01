@@ -13,7 +13,7 @@ type MailService struct {
 	senderMail string
 	password   string
 	Host       string
-	Port       string
+	Port       int
 }
 
 func (sender *MailService) getAuth() smtp.Auth {
@@ -21,15 +21,15 @@ func (sender *MailService) getAuth() smtp.Auth {
 }
 
 func (sender *MailService) Send(message string, recipient []string) error {
-	// err := smtp.SendMail(fmt.Sprintf("%v:%v", sender.Host, sender.Port), sender.getAuth(), sender.senderMail, recipient, []byte(message))
-	// if err != nil {
-	// 	fmt.Printf("Error on sending email %v\n", err)
-	// }
-	fmt.Println(message, recipient)
+	err := smtp.SendMail(fmt.Sprintf("%v:%v", sender.Host, sender.Port), sender.getAuth(), sender.senderMail, recipient, []byte(message))
+	if err != nil {
+		fmt.Printf("Error on sending email %v\n", err)
+		return err
+	}
 	return nil
 }
 
-func NewMailService(email, password, host, port string) *MailService {
+func NewMailService(email, password, host string, port int) *MailService {
 	return &MailService{
 		senderMail: email,
 		password:   password,

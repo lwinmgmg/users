@@ -8,9 +8,9 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	gmodels "github.com/lwinmgmg/gmodels/golang/models"
+	"github.com/lwinmgmg/user/middlewares"
 	"github.com/lwinmgmg/user/models"
 	"github.com/lwinmgmg/user/services"
-	"github.com/lwinmgmg/user/utils"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -32,7 +32,7 @@ type UserServer struct {
 func (userServer *UserServer) GetProfile(ctx context.Context, req *gmodels.GetProfileRequest) (*gmodels.User, error) {
 	var user models.User
 	var claim jwt.RegisteredClaims
-	if err := utils.ValidateToken(req.Token, utils.DefaultTokenKey, &claim); err != nil {
+	if err := middlewares.ValidateToken(req.Token, middlewares.DefaultTokenKey, &claim); err != nil {
 		return nil, status.Error(UnauthorizeCode, err.Error())
 	}
 	if _, err := user.GetPartnerByCode(claim.Subject, DB); err != nil {

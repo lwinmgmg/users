@@ -2,18 +2,30 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"log"
-	"os"
 	"time"
 
+	"github.com/lwinmgmg/user/env"
 	"github.com/redis/go-redis/v9"
+)
+
+var (
+	Env = env.GetEnv()
 )
 
 func init() {
 	var err error
 	// PgDB
 	if PgDb == nil {
-		PgDb, err = GetPgConn(PgDsn)
+		var pgDns string = fmt.Sprintf("host=%v port=%v user=%v password=%v dbname=%v sslmode=disable TimeZone=UTC",
+			Env.Settings.Postgres.Host,
+			Env.Settings.Postgres.Port,
+			Env.Settings.Postgres.Login,
+			Env.Settings.Postgres.Password,
+			Env.Settings.Postgres.DB,
+		)
+		PgDb, err = GetPgConn(pgDns)
 		if err != nil {
 			panic(err)
 		}
@@ -21,25 +33,24 @@ func init() {
 	// Redis
 	if UserRedis == nil {
 		UserRedis = redis.NewClient(&redis.Options{
-			Addr:     "localhost:6379",
-			Password: "",
-			DB:       0,
+			Addr:     fmt.Sprintf("%v:%v", Env.Settings.Redis.Host, Env.Settings.Redis.Port),
+			Username: Env.Settings.Redis.Login,
+			Password: Env.Settings.Redis.Password,
+			DB:       Env.Settings.Redis.DB,
 		})
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10000*time.Millisecond)
 	defer cancel()
 	if mesg, err := UserRedis.Ping(ctx).Result(); err != nil {
 		log.Fatalf("%v - %v", mesg, err)
+		panic(err)
 	}
 	// Mail Server
-	email := os.Getenv("GO_EMAIL")
-	password := os.Getenv("GO_EMAIL_PASSWORD")
 	if MailSender == nil {
-		MailSender = NewMailService(email, password, "smtp.gmail.com", "587")
+		MailSender = NewMailService(Env.Settings.Mail.Login, Env.Settings.Mail.Password, Env.Settings.Mail.Host, Env.Settings.Mail.Port)
 	}
-	if err := MailSender.Send("Hello", []string{email}); err != nil {
-		log.Println("No email provided")
-		// panic(err)
+	if err := MailSender.Send("Hello", []string{Env.Settings.Mail.Login}); err != nil {
+		panic(err)
 	}
 }
 

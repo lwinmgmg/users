@@ -1,4 +1,4 @@
-package v1
+package user
 
 import (
 	"bytes"
@@ -10,7 +10,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/lwinmgmg/user/controllers"
 	"github.com/lwinmgmg/user/datamodels"
+	"github.com/lwinmgmg/user/middlewares"
 	"github.com/lwinmgmg/user/models"
 	"github.com/lwinmgmg/user/services"
 	"github.com/lwinmgmg/user/utils"
@@ -21,6 +23,7 @@ import (
 
 type UserController struct {
 	Router *gin.RouterGroup
+	DB     *gorm.DB
 }
 
 func (ctrl *UserController) HandleRoutes() {
@@ -47,13 +50,13 @@ func (ctrl *UserController) ChangeEmail(ctx *gin.Context) {
 }
 
 func (ctrl *UserController) ConfirmEmail(ctx *gin.Context) {
-	userCode, ok := GetUserFromContext(ctx)
+	userCode, ok := controllers.GetUserFromContext(ctx)
 	if !ok {
 		return
 	}
 	user := models.User{}
 	// Get Partner
-	partner, err := user.GetPartnerByCode(userCode, DB)
+	partner, err := user.GetPartnerByCode(userCode, ctrl.DB)
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusNotFound, datamodels.DefaultResponse{
 			Code:    2,
@@ -102,7 +105,7 @@ func (ctrl *UserController) ConfirmEmail(ctx *gin.Context) {
 	go services.MailSender.Send(passCode, []string{partner.Email})
 	ctx.JSON(http.StatusOK, datamodels.TokenResponse{
 		AccessToken: uuidString,
-		TokenType:   utils.OtpTokenType,
+		TokenType:   middlewares.OtpTokenType,
 	})
 }
 
@@ -119,12 +122,12 @@ func (ctrl *UserController) ConfirmPhone(ctx *gin.Context) {
 }
 
 func (ctrl *UserController) EnableTwoFactorAuth(ctx *gin.Context) {
-	userCode, ok := GetUserFromContext(ctx)
+	userCode, ok := controllers.GetUserFromContext(ctx)
 	if !ok {
 		return
 	}
 	var user models.User
-	partner, err := user.GetPartnerByCode(userCode, DB)
+	partner, err := user.GetPartnerByCode(userCode, ctrl.DB)
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, datamodels.DefaultResponse{
 			Code:    1,
@@ -169,18 +172,18 @@ func (ctrl *UserController) EnableTwoFactorAuth(ctx *gin.Context) {
 	go services.MailSender.Send(passCode, []string{partner.Email})
 	ctx.JSON(http.StatusOK, datamodels.TokenResponse{
 		AccessToken: uuidString,
-		TokenType:   utils.OtpTokenType,
+		TokenType:   middlewares.OtpTokenType,
 	})
 }
 
 func (ctrl *UserController) EnableAuthenticator(ctx *gin.Context) {
-	userCode, ok := GetUserFromContext(ctx)
+	userCode, ok := controllers.GetUserFromContext(ctx)
 	if !ok {
 		return
 	}
 	var user models.User
 
-	if err := user.GetUserByCode(userCode, DB); err != nil {
+	if err := user.GetUserByCode(userCode, ctrl.DB); err != nil {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, datamodels.DefaultResponse{
 			Code:    1,
 			Message: fmt.Sprintf("Can't set authenticator [%v]", err),
@@ -230,7 +233,7 @@ func (ctrl *UserController) EnableAuthenticator(ctx *gin.Context) {
 	}
 	ctx.JSON(http.StatusOK, datamodels.TokenAuthResponse{
 		AccessToken: uuidString,
-		TokenType:   utils.OtpTokenType,
+		TokenType:   middlewares.OtpTokenType,
 		Image:       base64.StdEncoding.EncodeToString(buf.Bytes()),
 		Key:         key.Secret(),
 	})
@@ -239,7 +242,7 @@ func (ctrl *UserController) EnableAuthenticator(ctx *gin.Context) {
 func (ctrl *UserController) GetUserByUserCode(ctx *gin.Context) {
 	userCode := ctx.Param("userCode")
 	var user models.User
-	if _, err := user.GetPartnerByCode(userCode, DB); err != nil {
+	if _, err := user.GetPartnerByCode(userCode, ctrl.DB); err != nil {
 		if err == gorm.ErrRecordNotFound {
 			ctx.AbortWithStatusJSON(http.StatusNotFound, datamodels.DefaultResponse{
 				Code:    1,
@@ -271,12 +274,12 @@ func (ctrl *UserController) GetUserByUserCode(ctx *gin.Context) {
 }
 
 func (ctrl *UserController) GetProfile(ctx *gin.Context) {
-	userCode, ok := GetUserFromContext(ctx)
+	userCode, ok := controllers.GetUserFromContext(ctx)
 	if !ok {
 		return
 	}
 	var user models.User
-	if _, err := user.GetPartnerByCode(userCode, DB); err != nil {
+	if _, err := user.GetPartnerByCode(userCode, ctrl.DB); err != nil {
 		if err == gorm.ErrRecordNotFound {
 			ctx.AbortWithStatusJSON(http.StatusNotFound, datamodels.DefaultResponse{
 				Code:    1,

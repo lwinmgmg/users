@@ -5,14 +5,11 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/lwinmgmg/user/datamodels"
-	"github.com/lwinmgmg/user/services"
 	"github.com/lwinmgmg/user/utils"
-	"github.com/redis/go-redis/v9"
 )
 
 func ParseToken(keyString, tokenType string) (string, error) {
@@ -48,7 +45,7 @@ func JwtAuthMiddleware(tokenKey, tokenType string) gin.HandlerFunc {
 			}
 		}
 		claim := jwt.RegisteredClaims{}
-		if err := utils.ValidateToken(inputTokenString, tokenKey, &claim); err != nil {
+		if err := ValidateToken(inputTokenString, tokenKey, &claim); err != nil {
 			if errors.Is(err, jwt.ErrTokenExpired) {
 				ctx.AbortWithStatusJSON(http.StatusUnauthorized, datamodels.DefaultResponse{
 					Code:    3,
@@ -62,12 +59,6 @@ func JwtAuthMiddleware(tokenKey, tokenType string) gin.HandlerFunc {
 			}
 			return
 		}
-		go func() {
-			_, err := services.GetKey(inputTokenString)
-			if err == redis.Nil {
-				services.SetKey(inputTokenString, claim.Subject, claim.ExpiresAt.Sub(time.Now()))
-			}
-		}()
 		ctx.Set("userCode", claim.Subject)
 	}
 }

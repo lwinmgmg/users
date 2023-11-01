@@ -1,22 +1,25 @@
 package controllers
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
-	v1 "github.com/lwinmgmg/user/controllers/v1"
-	"github.com/lwinmgmg/user/middlewares"
-	"github.com/lwinmgmg/user/utils"
+	"github.com/lwinmgmg/user/datamodels"
 )
 
-func DefineRoutes(app *gin.Engine) {
-	v1AuthRouter := app.Group("/api/v1")
+func GetUserFromContext(ctx *gin.Context) (string, bool) {
+	userCode, ok := ctx.Get("userCode")
+	userCodeStr, ok1 := userCode.(string)
+	if !ok || !ok1 {
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, datamodels.DefaultResponse{
+			Code:    1,
+			Message: "Authorization Required!",
+		})
+		return "", false
+	}
+	return userCodeStr, true
+}
 
-	userAuthController := &v1.UserAuthController{
-		Router: v1AuthRouter,
-	}
-	userAuthController.HandleRoutes()
-	v1Router := app.Group("/api/v1", middlewares.JwtAuthMiddleware(utils.DefaultTokenKey, utils.BearerTokenType))
-	userController := &v1.UserController{
-		Router: v1Router,
-	}
-	userController.HandleRoutes()
+type HttpController interface {
+	HandleRoutes()
 }

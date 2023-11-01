@@ -120,3 +120,11 @@ func (user *User) SetIsAuthenticator(input bool, tx *gorm.DB) error {
 	user.IsAuthenticator = input
 	return tx.Save(user).Error
 }
+
+func GetPasswordByUserCode(code string, tx *gorm.DB) (string, error) {
+	var password string
+	if err := tx.Model(&User{}).Select("password").Where("code = ?", code).First(&password).Error; err != nil {
+		return "", err
+	}
+	return password, nil
+}
