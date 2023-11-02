@@ -28,6 +28,7 @@ ENV USER_WORKDIR="/etc/user/config"
 ENV USER_BINARY_DIR="/usr/local/user/bin"
 ENV PATH=${PATH}:${USER_BINARY_DIR}
 ENV SETTING_PATH="${USER_WORKDIR}/env.yaml"
+ENV GIN_MODE=release
 
 RUN groupadd --gid ${USER_USER_UID} ${USER_USER} \
     && useradd --uid ${USER_USER_UID} --gid ${USER_USER_UID} \

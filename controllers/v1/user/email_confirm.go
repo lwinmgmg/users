@@ -26,19 +26,11 @@ func (ctrl *UserController) ConfirmEmail(ctx *gin.Context) {
 	// Get Partner
 	partner, err := user.GetPartnerByCode(userCode, ctrl.DB)
 	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusNotFound, datamodels.DefaultResponse{
-			Code:    2,
-			Message: "Partner not found",
-		})
-		return
+		panic(controllers.NewPanicResponse(http.StatusNotFound, 2, "Partner Not Found"))
 	}
 	// Check email is already confirmed or not
 	if partner.IsEmailConfirmed {
-		ctx.JSON(http.StatusAccepted, datamodels.DefaultResponse{
-			Code:    1,
-			Message: "Email is already confirmed",
-		})
-		return
+		panic(controllers.NewPanicResponse(http.StatusAccepted, 1, "Email is already confirmed"))
 	}
 	// Generate UUID
 	randomUuid := uuid.New()
@@ -46,27 +38,15 @@ func (ctrl *UserController) ConfirmEmail(ctx *gin.Context) {
 	tokenExpireTime := 5 * time.Minute
 	otpUrl, err := utils.GenerateOtpUrl(user.Username, tokenExpireTime)
 	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusInternalServerError, datamodels.DefaultResponse{
-			Code:    2,
-			Message: fmt.Sprintf("Internal Server ERROR : %v", err),
-		})
-		return
+		panic(err)
 	}
 	if _, err := services.SetKey(uuidString, fmt.Sprintf(OPT_UUID_FORMAT, otpUrl, user.Code, OtpEmail), tokenExpireTime); err != nil {
-		ctx.AbortWithStatusJSON(http.StatusInternalServerError, datamodels.DefaultResponse{
-			Code:    2,
-			Message: fmt.Sprintf("Internal Server ERROR : %v", err),
-		})
-		return
+		panic(err)
 	}
 	// Parse Key from url
 	key, err := otp.NewKeyFromURL(otpUrl)
 	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusInternalServerError, datamodels.DefaultResponse{
-			Code:    1,
-			Message: fmt.Sprintf("Internal Server Error. %v", err),
-		})
-		return
+		panic(err)
 	}
 	// Get passcode and send Email
 	passCode, _ := totp.GenerateCode(key.Secret(), time.Now().UTC())

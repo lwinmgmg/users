@@ -1,28 +1,11 @@
 package datamodels
 
-import "errors"
-
 type UserData struct {
 	Code            string      `json:"code"`
 	Username        string      `json:"username"`
 	IsAuthenticator bool        `json:"is_authenticator"`
 	Is2FA           bool        `json:"is_2fa"`
 	PartnerData     PartnerData `json:"partner_data"`
-}
-
-type UserLoginData struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-}
-
-func (userLoginData *UserLoginData) Validate() error {
-	if userLoginData.Username == "" {
-		return errors.New("wrong username")
-	}
-	if userLoginData.Password == "" {
-		return errors.New("wrong password")
-	}
-	return nil
 }
 
 type TokenResponse struct {

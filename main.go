@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/lwinmgmg/user/controllers"
 	v1 "github.com/lwinmgmg/user/controllers/v1"
 	"github.com/lwinmgmg/user/env"
 	"github.com/lwinmgmg/user/grpc/server"
@@ -17,8 +18,8 @@ var (
 
 func main() {
 	var wg sync.WaitGroup
-	app := gin.Default()
-	app.Use(cors.Default())
+	app := gin.New()
+	app.Use(gin.Logger(), cors.Default(), gin.CustomRecovery(controllers.CusRecoveryFunction))
 	v1.DefineRoutes(app)
 	wg.Add(1)
 	go func() {

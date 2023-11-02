@@ -1,12 +1,14 @@
 package user
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/lwinmgmg/user/controllers"
 	"github.com/lwinmgmg/user/datamodels"
 	"github.com/lwinmgmg/user/middlewares"
 	"github.com/lwinmgmg/user/models"
@@ -16,14 +18,25 @@ import (
 	"gorm.io/gorm"
 )
 
+type UserLoginData struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+func (userLoginData *UserLoginData) Validate() error {
+	if userLoginData.Username == "" {
+		return errors.New("wrong username")
+	}
+	if userLoginData.Password == "" {
+		return errors.New("wrong password")
+	}
+	return nil
+}
+
 func (ctrl *UserAuthController) Login(ctx *gin.Context) {
-	userLoginData := datamodels.UserLoginData{}
+	userLoginData := UserLoginData{}
 	if err := ctx.ShouldBindJSON(&userLoginData); err != nil {
-		ctx.AbortWithStatusJSON(http.StatusUnauthorized, datamodels.DefaultResponse{
-			Code:    1,
-			Message: fmt.Sprintf("Authorization Required! [%v]", err.Error()),
-		})
-		return
+		panic(controllers.NewPanicResponse(http.StatusUnauthorized, 1, fmt.Sprintf("Authorization Required! [%v]", err.Error())))
 	}
 	if err := userLoginData.Validate(); err != nil {
 		ctx.AbortWithStatusJSON(http.StatusUnauthorized, datamodels.DefaultResponse{
@@ -33,7 +46,7 @@ func (ctrl *UserAuthController) Login(ctx *gin.Context) {
 		return
 	}
 	user := models.User{}
-	if err := user.Authenticate(ctrl.DB, &userLoginData); err != nil {
+	if err := user.Authenticate(ctrl.DB, userLoginData.Username, userLoginData.Password); err != nil {
 		if err == gorm.ErrRecordNotFound {
 			ctx.AbortWithStatusJSON(http.StatusNotFound, datamodels.DefaultResponse{
 				Code:    1,

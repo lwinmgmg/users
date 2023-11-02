@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/lwinmgmg/user/datamodels"
 	"github.com/lwinmgmg/user/utils"
 	"gorm.io/gorm"
 )
@@ -44,16 +43,16 @@ func (user *User) Create(tx *gorm.DB) error {
 	return tx.Create(user).Error
 }
 
-func (user *User) Authenticate(tx *gorm.DB, userLoginData *datamodels.UserLoginData) error {
+func (user *User) Authenticate(tx *gorm.DB, username, password string) error {
 	if err := tx.Where(&User{
-		Username: userLoginData.Username,
+		Username: username,
 	}).First(user).Error; err != nil {
 		return err
 	}
 	if user.Username == "" {
 		return errors.New("user not found")
 	}
-	if !bytes.Equal(user.Password, utils.Hash256(userLoginData.Password)) {
+	if !bytes.Equal(user.Password, utils.Hash256(password)) {
 		return errors.New("wrong password")
 	}
 	return nil
