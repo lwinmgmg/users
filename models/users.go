@@ -128,3 +128,23 @@ func GetPasswordByUserCode(code string, tx *gorm.DB) (string, error) {
 	}
 	return password, nil
 }
+
+func CreateTestUser(username, password string, tx *gorm.DB) (*User, error) {
+	partner := Partner{
+		FirstName: "Test",
+		LastName:  "Test",
+		Email:     "test@mail.com",
+	}
+	if err := partner.Create(tx); err != nil {
+		return nil, err
+	}
+	user := User{
+		Username:  username,
+		Password:  utils.Hash256(password),
+		PartnerID: partner.ID,
+	}
+	if err := user.Create(tx); err != nil {
+		return nil, err
+	}
+	return &user, nil
+}

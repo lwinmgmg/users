@@ -1,14 +1,9 @@
 package env
 
 import (
-	"fmt"
 	"os"
 
 	"gopkg.in/yaml.v3"
-)
-
-const (
-	EnvFileName = "env.yaml"
 )
 
 type Settings struct {
@@ -26,7 +21,11 @@ type Env struct {
 }
 
 func GetEnv() Env {
-	data, err := os.ReadFile(EnvFileName)
+	path, ok := os.LookupEnv("SETTING_PATH")
+	if !ok {
+		path = "env.yaml"
+	}
+	data, err := os.ReadFile(path)
 	if err != nil {
 		panic(err)
 	}
@@ -34,6 +33,5 @@ func GetEnv() Env {
 	if err := yaml.Unmarshal(data, &env); err != nil {
 		panic(err)
 	}
-	fmt.Println(env)
 	return env
 }
