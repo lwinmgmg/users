@@ -77,8 +77,8 @@ func (userServer *UserServer) GetUserByCode(ctx context.Context, req *gmodels.Ge
 	}, nil
 }
 
-func StartServer() {
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", 8069))
+func StartServer(host string, port int) {
+	lis, err := net.Listen("tcp", fmt.Sprintf("%v:%v", host, port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}

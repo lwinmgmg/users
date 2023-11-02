@@ -28,7 +28,7 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		server.StartServer()
+		server.StartServer(Env.Settings.Host, Env.Settings.GRPC_PORT)
 	}()
 	wg.Wait()
 }

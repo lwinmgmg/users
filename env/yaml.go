@@ -12,12 +12,13 @@ const (
 )
 
 type Settings struct {
-	Host     string      `yaml:"host"`
-	Port     string      `yaml:"port"`
-	JwtKey   string      `yaml:"jwt_key"`
-	Redis    RedisEnv    `yaml:"redis"`
-	Postgres DatabaseEnv `yaml:"postgres"`
-	Mail     ServerEnv   `yaml:"mail"`
+	Host      string      `yaml:"host"`
+	Port      int         `yaml:"port"`
+	JwtKey    string      `yaml:"jwt_key"`
+	GRPC_PORT int         `yaml:"grpc_port"`
+	Redis     RedisEnv    `yaml:"redis"`
+	Postgres  DatabaseEnv `yaml:"postgres"`
+	Mail      ServerEnv   `yaml:"mail"`
 }
 
 type Env struct {
