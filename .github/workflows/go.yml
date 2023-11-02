@@ -22,8 +22,8 @@ jobs:
         go-version: '1.21'
     - name: Test
       run: |
-      export SETTING_PATH=$(pwd)/env.yaml.example
-      go test -v ./...
+        pwd
+        go test -v ./...
   build:
     needs:
       - test
