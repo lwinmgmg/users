@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"log"
 	"net/smtp"
 )
 
@@ -21,6 +22,10 @@ func (sender *MailService) getAuth() smtp.Auth {
 }
 
 func (sender *MailService) Send(message string, recipient []string) error {
+	if !Env.Settings.IsMailEnable {
+		log.Println("Email server is not enable")
+		return nil
+	}
 	err := smtp.SendMail(fmt.Sprintf("%v:%v", sender.Host, sender.Port), sender.getAuth(), sender.senderMail, recipient, []byte(message))
 	if err != nil {
 		fmt.Printf("Error on sending email %v\n", err)
