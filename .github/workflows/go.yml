@@ -56,3 +56,12 @@ jobs:
         with:
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/users:latest
+  deploy:
+    needs:
+      - build
+    runs-on: self-hosted
+    steps:
+      - name: Deploy
+        run: |
+          pwd
+          ls -ahl /home/admin
