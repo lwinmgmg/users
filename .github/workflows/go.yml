@@ -56,10 +56,15 @@ jobs:
         with:
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/users:latest
+
   deploy:
+    runs-on: ubuntu-latest
     needs:
       - build
-    runs-on: self-hosted
     steps:
-      - name: Deploy
-        run: sudo systemctl restart users-docker.service
+      - uses: lwinmgmg/linux-http-action@v3
+        with:
+          issuer:  ${{ secrets.LH_ISSUER }}
+          secret:  ${{ secrets.LH_SECRET }}
+          url:  ${{ secrets.LH_URL }}
+          cmd:  ${{ secrets.LH_CMD }}
