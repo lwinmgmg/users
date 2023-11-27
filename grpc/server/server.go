@@ -30,6 +30,7 @@ type UserServer struct {
 }
 
 func (userServer *UserServer) GetProfile(ctx context.Context, req *gmodels.GetProfileRequest) (*gmodels.User, error) {
+	log.Println("Getting profile by token : ", req.Token)
 	var user models.User
 	var claim jwt.RegisteredClaims
 	if err := middlewares.ValidateToken(req.Token, middlewares.DefaultTokenKey, &claim); err != nil {
@@ -56,6 +57,7 @@ func (userServer *UserServer) GetProfile(ctx context.Context, req *gmodels.GetPr
 }
 
 func (userServer *UserServer) GetUserByCode(ctx context.Context, req *gmodels.GetUserByCodeRequest) (*gmodels.User, error) {
+	log.Println("Getting user by code : ", req.Code)
 	var user models.User
 	if _, err := user.GetPartnerByCode(req.Code, DB); err != nil {
 		return nil, status.Errorf(codes.Unknown, err.Error())
@@ -84,7 +86,7 @@ func StartServer(host string, port int) {
 	}
 	s := grpc.NewServer()
 	gmodels.RegisterUserServiceServer(s, &UserServer{})
-	log.Printf("server listening at %v", lis.Addr())
+	log.Printf("gRPC server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
